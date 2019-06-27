@@ -3,7 +3,7 @@
 	"description" : "A class for creating radial menus, controlled with the mouse.\nSee GitHub for documentation.",
 	"author" : "Offyerrocker",
 	"contact" : "Discord: Offyerrocker#3878",
-	"version" : "0.8",
+	"version" : "0.9",
 	"blt_version" : 2,
 	"color" : "255 255 255",
 	"hooks" : [
