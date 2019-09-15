@@ -1,4 +1,4 @@
---[[ TODO
+--[[ TODO 
 
 * add keyboard button support
 	* item var "key id" for hotkeys
@@ -6,6 +6,7 @@
 * update add_item and create_item to better definitions	
 	* icon definition should be separate
 	
+--CHANGELOG
 --]]
 
 RadialMouseMenu = RadialMouseMenu or class()
@@ -18,21 +19,25 @@ function RadialMouseMenu:init(params) --create new instance of a radial selectio
 	params = params or {}
 	local name = params.name --radial name; used for labelling hud elements
 	if not name then 
+		name = "imascrubwhodoesntnametheirstuff_" .. math.random(4206942069)
 		if Console then 
-			Console:Log("ERROR: RadialMouseMenu:init(): You must supply a valid name! Please see documentation at https://github.com/offyerrocker/RadialMouseMenu/wiki",{color = Color.red})
+			Console:Log("ERROR: RadialMouseMenu:init(): You must supply a valid name! Setting name to [" .. name .. "]. Please see documentation at https://github.com/offyerrocker/RadialMouseMenu/wiki",{color = Color.red})
 		else
-			log("ERROR: RadialMouseMenu:init(): You must supply a valid name! Please see documentation at https://github.com/offyerrocker/RadialMouseMenu/wiki")
+			log("ERROR: RadialMouseMenu:init(): You must supply a valid name! Setting name to [" .. name .. "]. Please see documentation at https://github.com/offyerrocker/RadialMouseMenu/wiki")
 		end
-		return
 	end
 	--radial menus are automatically centered, so be advised that x/y values here are counted from the center of the screen
 	local x = params.x or 0
 	local y = params.y or 0
 	
 	Hooks:Register("radialmenu_selected_" .. name) --this hook is called when you select a thing
+	Hooks:Register("radialmenu_released_" .. name) --this is called when you hide a thing	
+	
+	self.keep_mouse_position = params.keep_mouse_position or false
+	
 	local radius = params.radius or 300 --size of radial, NOT the size of the parent panel
 	self._size = radius
-	
+	self._deadzone = params.deadzone --minimum distance from center the mouse must be in order to select an item
 	self._name = name
 	self._items = params.items or {}
 		
@@ -46,15 +51,36 @@ function RadialMouseMenu:init(params) --create new instance of a radial selectio
 		h = base:h()
 	})
 	
+	local center_x = self._hud:w() / 2
+	local center_y = self._hud:h() / 2
+	
 	local bg = params.bg or {
 		name = name .. "_BG",
 		texture = "guis/textures/pd2/hud_radialbg",--dark radial background texture (blank circle by default)
-		blend_mode = "multiply",
+--		render_template = "VertexColorTexturedBlur3D",
+		valign = "grow",
+		halign = "grow",
 		layer = 1,
-		alpha = 0.8,
+		alpha = 0.7,
 		w = radius,
 		h = radius
 	}
+
+	
+	local blur = params.blur or {
+		texture = tweak_data.hud_icons.icon_circlefill16.texture,
+		texture_rect = tweak_data.hud_icons.icon_circlefill16.texture_rect,
+		name = name .. "_BLUR",
+		render_template = "VertexColorTexturedBlur3D",
+		visible = not (params.blur == false), --don't display if blur is specifically set to false, but create invisible hud element anyway
+		valign = "grow",
+		halign = "grow",
+		layer = -2,
+		alpha = 0.5,
+		w = radius,
+		h = radius
+	}
+	
 	local center_text = params.center_text or {
 		name = name .. "_CENTER_TEXT",
 		text = "",
@@ -89,13 +115,17 @@ function RadialMouseMenu:init(params) --create new instance of a radial selectio
 
 	
 	self._bg = self._hud:bitmap(bg)
-	self._bg:set_center(self._hud:w() / 2,self._hud:h() / 2)
+	self._bg:set_center(center_x,center_y)
+	
+	
+	self._blur = self._hud:bitmap(blur)
+	self._blur:set_center(center_x,center_y)
 	
 	
 	self._center_text = self._hud:text(center_text)
 	
 	self._selector = self._hud:bitmap(selector)
-	self._selector:set_center(self._hud:w() / 2,self._hud:h() / 2)
+	self._selector:set_center(center_x,center_y)
 	self._arrow = self._hud:bitmap(arrow)
 	--[[
 	local debug_area = self._hud:rect{
@@ -104,6 +134,7 @@ function RadialMouseMenu:init(params) --create new instance of a radial selectio
 		name = "debug_area",
 		layer = 1
 	}--]]
+	self:populate_items() --!
 	return self
 end
 
@@ -146,19 +177,28 @@ function RadialMouseMenu:mouse_moved(o,mouse_x,mouse_y)
 			mouse_angle = 0 + 90 --down
 		end
 	end	
-	clean_angle = ((mouse_angle - 90) - (180/num_items)) % 360
-	
 	local angle_interval = 360 / num_items
 	
-	local mouseover_selected = 1 + math.floor(clean_angle / angle_interval) --number index of selected object of self._items 
+--	clean_angle = ( -angle_interval + ((mouse_angle - 90) - (180/num_items))) % 360
+	clean_angle = ((mouse_angle - 90) + (180/num_items)) % 360
+	
+	
+	local mouseover_selected = 1 + math.floor(clean_angle / angle_interval)  --number index of selected object of self._items 
 	local mouseover_angle = (mouseover_selected - 0.5) * angle_interval --angle of selected object of self._items
-	self._selected = mouseover_selected
-	self._selector:set_rotation(mouseover_angle)
-
+	self._selector:set_rotation(mouseover_angle - angle_interval)
+	
+	local function outside_deadzone(x1,y1,d)
+		if not d then return true end
+		return ((x1 * x1) + (y1 * y1)) >= (d * d)
+	end
+	
 	local item = self._items[mouseover_selected]
-	if item then 
-		self._center_text:set_text(item.text) --set text in radial center to name of selected item
-		self._arrow:set_color(item._icon and item._icon:color() or Color.white) --set arrow color to match color of item icon
+	if outside_deadzone(mouse_x,mouse_y,self._deadzone) then 
+		self:on_mouseover_item(mouseover_selected)
+	else
+		self._selector:set_visible(false)
+		self._selected = false
+		self._center_text:set_visible(false)
 	end
 	
 	local opposite = math.cos((mouse_angle - 180))
@@ -177,6 +217,8 @@ function RadialMouseMenu:mouse_clicked(o,button,x,y)
 	end
 	local item = self._selected and self._items[self._selected]
 	if item then 
+	
+--		item._body:set_visible(not item._body:visible())
 		local success,result
 		if item.callback then 
 			success,result = pcall(item.callback)
@@ -186,6 +228,40 @@ function RadialMouseMenu:mouse_clicked(o,button,x,y)
 			self:Hide()
 		end
 	end
+end
+
+function RadialMouseMenu:on_mouseover_item(index) --you can choose to clone the class and change the mousover event animation if you want
+	local item = self:get_item(index)
+	if not item then 
+		self._selected = false
+		return 
+	end
+	self._selected = index
+	self._selector:set_visible(true)
+	local old_item = self:get_item(self._selected)
+	local function animate_flare(o,down)
+		local text_panel = o._text_panel
+		local font_size = o.text_panel.font_size
+		local final_size = font_size * (down and 1 or 1.25)
+
+		local rate = down and 0.95 or 1.05
+		
+		repeat
+			local s = math[down and "max" or "min"](text_panel:font_size() * rate,final_size)
+			
+			text_panel:set_font_size(s)
+			
+			coroutine.yield()
+		until math.abs(text_panel:font_size() - final_size) <= 0.01
+	end
+	
+	self._center_text:set_visible(true)
+	self._center_text:set_text(item.text) --set text in radial center to name of selected item
+	self._arrow:set_color(item._icon and item._icon:color() or Color.white) --set arrow color to match color of item icon
+	
+--	item:animate(animate_flare,false) --must be called from a hud panel
+--	old_item:animate(animate_flare,true)
+
 end
 
 function RadialMouseMenu:Toggle(state)
@@ -205,6 +281,11 @@ function RadialMouseMenu:Show()
 		self:populate_items()	
 		self._init_items_done = true
 	end
+	
+	if RadialMouseMenu.current_menu and RadialMouseMenu._name ~= self:name() then 
+		RadialMouseMenu.current_menu:Hide(true) --hide any other active radial menus, since only one can take input at a time
+	end
+	RadialMouseMenu.current_menu = self
 
 	self._hud:show()
 	local data = {
@@ -216,21 +297,33 @@ function RadialMouseMenu:Show()
 		managers.mouse_pointer:use_mouse(data)
 		game_state_machine:_set_controller_enabled(false)
 	end
+	if not self.keep_mouse_position then 
+		managers.mouse_pointer:set_mouse_world_position(self._hud:w()/2,self._hud:h()/2) --todo use center() instead
+	end
 	self._active = true
+end
+
+function RadialMouseMenu:get_name()
+	return self._name
 end
 
 function RadialMouseMenu:active() --whether or not this menu instance is visible and interactable
 	return self._active
 end
 
-function RadialMouseMenu:Hide()
-	self._selected = false
+function RadialMouseMenu:Hide(skip_reset)
+	if not skip_reset then 
+		RadialMouseMenu.current_menu = nil
+	end
 	self._hud:hide()
 --	RadialMouseMenu._WS:disconnect_keyboard()
 	if self._active then 
+		self._selector:set_visible(false)
+		self:on_closed()
 		managers.mouse_pointer:remove_mouse("radial_menu_mouse")
 		game_state_machine:_set_controller_enabled(true)
 	end
+	self._selected = false
 	self._active = false
 end
 
@@ -314,7 +407,7 @@ function RadialMouseMenu:get_all_items()
 end
 
 function RadialMouseMenu:reset_items(skip_refresh) --removes panels from items, but keeps original data
-	for k,data in pairs(self._items) do 
+	for k,data in ipairs(self._items) do 
 		if data._panel and alive(data._panel) then 
 			self._hud:remove(data._panel)
 			data._icon = nil
@@ -325,6 +418,10 @@ function RadialMouseMenu:reset_items(skip_refresh) --removes panels from items, 
 	if not skip_refresh then 
 		self:populate_items()
 	end
+end
+
+function RadialMouseMenu:on_closed()
+	Hooks:Call("radialmenu_released_" .. self:get_name(),self._selected)
 end
 
 function RadialMouseMenu:clear_items() --removes ALL ITEM DATA
@@ -354,7 +451,7 @@ function RadialMouseMenu:populate_items()
 	--stacks are not chief among the things i like to overflow
 	
 	local num_items = math.max(#self._items,1)
-	for k,data in pairs(self._items) do 
+	for k,data in ipairs(self._items) do --order is important here
 		local text = data.text or ""
 		local name = "item_" .. k
 		local ho = self._hud:h() / 2 --position offsets to place the given hud element in the center of the radial
@@ -368,7 +465,8 @@ function RadialMouseMenu:populate_items()
 		new_segment:set_center(wo,ho)
 		data._panel = new_segment --save master panel reference to this item's data
 		
-		local angle = (360 * (k / num_items) - 90) % 360
+--		local angle = (360 * ((k + 1) / num_items) - 90) % 360
+		local angle = (360 * ((k - 1) / num_items) - 90) % 360
 
 		local body = data.bitmap or { --arc texture for this item
 			layer = 1,
@@ -384,7 +482,7 @@ function RadialMouseMenu:populate_items()
 		body.rotation = angle + 90 - (180/num_items)
 		local segment_texture = new_segment:bitmap(body)
 		segment_texture:set_center(self._size / 2,self._size / 2)
-		data._bitmap = segment_texture
+		data._body = segment_texture
 
 		local icon = data.icon or { --invisible icon if not specified
 			layer = 3,
