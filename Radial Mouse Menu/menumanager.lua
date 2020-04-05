@@ -1,4 +1,4 @@
---[[ TODO 
+--[[ TODO
 
 * add keyboard button support
 	* item var "key id" for hotkeys
@@ -6,11 +6,41 @@
 * update add_item and create_item to better definitions	
 	* icon definition should be separate
 	
+	new:
+--resets mouse pos on show, optionally
+	
 --CHANGELOG
+* added deadzone option
+* selector is only visible on valid options
+* selector updates position after mouse over, not necessarily every frame
+* more consistent spacing between odd and even item amounts
+* items will now always position so that the first item is straight up (0/360*) on the radial menu
+
 --]]
 
+
 RadialMouseMenu = RadialMouseMenu or class()
-function RadialMouseMenu:init(params) --create new instance of a radial selection menu; called from new()
+
+RadialMouseMenu.queued_items = {}
+
+function RadialMouseMenu.CreateQueuedMenus()
+	for i,_data in pairs(RadialMouseMenu.queued_items) do
+		local data = table.remove(RadialMouseMenu.queued_items,i)
+		local result = RadialMouseMenu:new(data.params,data.callback)
+		if result and (type(data.callback) == "function") then 
+			data.callback(result)
+		end
+	end
+end
+
+function RadialMouseMenu:init(params,callback) --create new instance of a radial selection menu; called from new()
+	if not managers.gui_data then 
+		table.insert(RadialMouseMenu.queued_items,{callback = callback,params = params})
+		--if RadialMouseMenu:new() is called after RMM loads but before the rest of the game,
+		--save the information for later and create it on game load
+		return
+	end
+
 	RadialMouseMenu._WS = RadialMouseMenu._WS or managers.gui_data:create_fullscreen_workspace() --create classwide workspace if it doesn't already exist
 	
 	local base = RadialMouseMenu._WS:panel()
@@ -19,12 +49,13 @@ function RadialMouseMenu:init(params) --create new instance of a radial selectio
 	params = params or {}
 	local name = params.name --radial name; used for labelling hud elements
 	if not name then 
-		name = "imascrubwhodoesntnametheirstuff_" .. math.random(4206942069)
+		local error_msg = "ERROR: RadialMouseMenu:init(): You must supply a valid name! Please see documentation at https://github.com/offyerrocker/RadialMouseMenu/wiki"
 		if Console then 
-			Console:Log("ERROR: RadialMouseMenu:init(): You must supply a valid name! Setting name to [" .. name .. "]. Please see documentation at https://github.com/offyerrocker/RadialMouseMenu/wiki",{color = Color.red})
+			Console:Log(error_msg,{color = Color.red})
 		else
-			log("ERROR: RadialMouseMenu:init(): You must supply a valid name! Setting name to [" .. name .. "]. Please see documentation at https://github.com/offyerrocker/RadialMouseMenu/wiki")
+			log(error_msg)
 		end
+		return
 	end
 	--radial menus are automatically centered, so be advised that x/y values here are counted from the center of the screen
 	local x = params.x or 0
@@ -137,16 +168,6 @@ function RadialMouseMenu:init(params) --create new instance of a radial selectio
 	self:populate_items() --!
 	return self
 end
-
---[[ key stuff
-function RadialMouseMenu:key_press(o,k)
-	
-end
-
-function RadialMouseMenu:update_key_down(o,k,t)
-
-end
---]]
 
 function RadialMouseMenu:mouse_moved(o,mouse_x,mouse_y)
 	local offset_x = self._hud:w() / 2
@@ -524,3 +545,7 @@ function RadialMouseMenu:populate_items()
 		self._selector:set_color(Color(1/num_items,1,1))
 	end	
 end
+
+
+Hooks:Add("BaseNetworkSessionOnLoadComplete","radialmousemenu_onloaded",RadialMouseMenu.CreateQueuedMenus)
+--function(RadialMouseMenu:CreateQueuedMenus())

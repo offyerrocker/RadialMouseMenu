@@ -5,16 +5,12 @@
 	"contact" : "Discord: Offyerrocker#3878",
 	"version" : "1.0",
 	"blt_version" : 2,
+	"priority" : 1,
 	"color" : "255 255 255",
 	"hooks" : [
 		{
 			"hook_id" : "lib/managers/menumanager",
 			"script_path" : "menumanager.lua"
-		}
-	],
-	"updates" : [
-		{
-			"identifier" : "RMM"
 		}
 	]
 }
