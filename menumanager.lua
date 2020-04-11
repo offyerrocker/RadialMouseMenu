@@ -166,6 +166,9 @@ function RadialMouseMenu:init(params,callback) --create new instance of a radial
 		layer = 1
 	}--]]
 	self:populate_items() --!
+	if type(callback) == "function" then 
+		callback(self)
+	end
 	return self
 end
 
@@ -548,4 +551,3 @@ end
 
 
 Hooks:Add("BaseNetworkSessionOnLoadComplete","radialmousemenu_onloaded",RadialMouseMenu.CreateQueuedMenus)
---function(RadialMouseMenu:CreateQueuedMenus())
