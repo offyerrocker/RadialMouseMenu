@@ -12,5 +12,15 @@
 			"hook_id" : "lib/managers/menumanager",
 			"script_path" : "menumanager.lua"
 		}
+	],
+	"DISABLED_updates" : [
+		{
+			"identifier" : "RadialMouseMenu",
+			"host" : {
+				"meta" : "https://example.com/my_meta.json",
+				"download" : "https://github.com/offyerrocker/RadialMouseMenu/archive/master.zip",
+				"patchnotes" : "https://example.com/patchnotes.html"
+			}
+		}
 	]
 }
