@@ -3,7 +3,7 @@
 	"description" : "A class for creating radial menus, controlled with the mouse.\nSee GitHub for documentation.",
 	"author" : "Offyerrocker",
 	"contact" : "Discord: Offyerrocker#3878",
-	"version" : "1.0",
+	"version" : "1.01",
 	"blt_version" : 2,
 	"image" : "rmm_icon.png",
 	"priority" : 1,
