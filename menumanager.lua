@@ -459,7 +459,7 @@ function RadialMouseMenu:on_closed()
 end
 
 function RadialMouseMenu:clear_items() --removes ALL ITEM DATA
-	self:reset_items()
+	self:reset_items(true)
 	self._items = {}
 end
 
