@@ -27,9 +27,9 @@ function RadialMouseMenu.CreateQueuedMenus()
 	for i,_data in pairs(RadialMouseMenu.queued_items) do
 		local data = table.remove(RadialMouseMenu.queued_items,i)
 		local result = RadialMouseMenu:new(data.params,data.callback)
-		if result and (type(data.callback) == "function") then 
-			data.callback(result)
-		end
+--		if result and (type(data.callback) == "function") then 
+--			data.callback(result)
+--		end
 	end
 end
 
@@ -166,6 +166,7 @@ function RadialMouseMenu:init(params,callback) --create new instance of a radial
 		layer = 1
 	}--]]
 	self:populate_items() --!
+
 	if type(callback) == "function" then 
 		callback(self)
 	end
@@ -306,11 +307,11 @@ end
 
 function RadialMouseMenu:Show()
 	if not self._init_items_done then 
-		self:populate_items()	
+		self:populate_items()
 		self._init_items_done = true
 	end
 	
-	if RadialMouseMenu.current_menu and RadialMouseMenu._name ~= self:name() then 
+	if RadialMouseMenu.current_menu and RadialMouseMenu._name ~= self:get_name() then 
 		RadialMouseMenu.current_menu:Hide(true) --hide any other active radial menus, since only one can take input at a time
 	end
 	RadialMouseMenu.current_menu = self
@@ -499,7 +500,6 @@ function RadialMouseMenu:populate_items()
 		new_segment:set_center(wo,ho)
 		data._panel = new_segment --save master panel reference to this item's data
 		
---		local angle = (360 * ((k + 1) / num_items) - 90) % 360
 		local angle = (360 * ((k - 1) / num_items) - 90) % 360
 
 		local body = data.bitmap or { --arc texture for this item
@@ -520,10 +520,9 @@ function RadialMouseMenu:populate_items()
 
 		local icon = data.icon or { --invisible icon if not specified
 			layer = 3,
-			alpha = 0.7,
+			visible = false,
 			color = tweak_data.chat_colors[1 + (k % #tweak_data.chat_colors)] or Color.white
 		}
---		Log(angle,{color = icon.color})
 		icon.name = name .. "_ICON"
 		icon.w = icon.w or 24
 		icon.h = icon.h or 24
@@ -557,6 +556,7 @@ function RadialMouseMenu:populate_items()
 		
 		self._selector:set_color(Color(1/num_items,1,1))
 	end	
+	self._init_items_done = true
 end
 
 
