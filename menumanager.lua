@@ -1,5 +1,7 @@
 --[[ TODO
 
+--allow repositioning text (currently centered from formula: [0.5*radius  +  constant] )
+
 * add keyboard button support
 	* item var "key id" for hotkeys
 
@@ -7,20 +9,20 @@
 	* icon definition should be separate
 	
 	new:
---resets mouse pos on show, optionally
 	
 --CHANGELOG
-* added deadzone option
-* selector is only visible on valid options
-* selector updates position after mouse over, not necessarily every frame
-* more consistent spacing between odd and even item amounts
-* items will now always position so that the first item is straight up (0/360*) on the radial menu
-
+Added option for disabling game movement (blocking character control input, but keeping menu input). For reasons of compatibility with existing mods that use RMM, this is enabled by default, but can now be set to false in order to use the alternate, selective input blocking methods.
+Added option to allow looking around while in radial menu (recommended to disable for targeting-specific radial menus, like the apex legends-style ping menu mod)
+Added option to allow movement while in radial menu 
+Note: Unfortunately, selectively allowing certain types of input comes at the cost of potential mod compatibility (due to the requirement of more hooked files and functions). I have provided as much compatibility support as I can at the moment; as always, please let me know if you encounter issues.
+Fixed mouse position resetting even when keep_mouse_position is true
+Fixed nested radial menus causing issues recognizing currently-open menus due to resetting flags and executing callbacks in the incorrect order
+Added on-exit-menu cooldown for blocking attack input
 --]]
 
 
 RadialMouseMenu = RadialMouseMenu or class()
-
+RadialMouseMenu.MOUSE_ID = "radial_menu_mouse"
 RadialMouseMenu.queued_items = {}
 
 function RadialMouseMenu.CreateQueuedMenus()
@@ -64,7 +66,35 @@ function RadialMouseMenu:init(params,callback) --create new instance of a radial
 	Hooks:Register("radialmenu_selected_" .. name) --this hook is called when you select a thing
 	Hooks:Register("radialmenu_released_" .. name) --this is called when you hide a thing	
 	
-	self.keep_mouse_position = params.keep_mouse_position or false
+	
+	if params.keep_mouse_position == nil then 
+		self.keep_mouse_position = false
+	else
+		self.keep_mouse_position = params.keep_mouse_position
+	end
+	
+	if params.allow_keyboard_input == nil then 
+		self.allow_keyboard_input = true
+	else
+		self.allow_keyboard_input = params.allow_keyboard_input
+	end
+	
+	if params.allow_camera_look == nil then 
+		self.allow_camera_look = false
+	else
+		self.allow_camera_look = params.allow_camera_look
+	end
+	
+	--this effectively (albeit indirectly) overrides allow_camera_look and allow_keyboard_input anyway
+	if params.block_all_input == nil then 
+		self.block_all_input = true
+	else
+		self.block_all_input = params.block_all_input
+	end
+	if self.block_all_input then 
+		self.allow_keyboard_input = false
+		self.allow_camera_look = false
+	end
 	
 	local radius = params.radius or 300 --size of radial, NOT the size of the parent panel
 	self._size = radius
@@ -249,13 +279,13 @@ end
 function RadialMouseMenu:on_item_clicked(item,skip_hide)
 --	item._body:set_visible(not item._body:visible())
 	local success,result
+	if not (item.stay_open or skip_hide) then 
+		self:Hide(nil,false)
+	end
 	if item.callback then 
 		success,result = pcall(item.callback)
 	end
 	Hooks:Call("radialmenu_selected_" .. self._name,self._selected,result)
-	if not (item.stay_open or skip_hide) then 
-		self:Hide(nil,false)
-	end
 end
 
 
@@ -320,11 +350,13 @@ function RadialMouseMenu:Show()
 	local data = {
 		mouse_move = callback(self, self, "mouse_moved"),
 		mouse_click = callback(self, self, "mouse_clicked"),
-		id = "radial_menu_mouse"
+		id =  RadialMouseMenu.MOUSE_ID
 	}
 	if not self._active then 
 		managers.mouse_pointer:use_mouse(data)
-		game_state_machine:_set_controller_enabled(false)
+		if self.block_all_input then 
+			game_state_machine:_set_controller_enabled(false)
+		end
 	end
 	if not self.keep_mouse_position then 
 		managers.mouse_pointer:set_mouse_world_position(self._hud:w()/2,self._hud:h()/2) --todo use center() instead
@@ -346,20 +378,26 @@ function RadialMouseMenu:Hide(skip_reset,do_success_cb)
 	end
 	self._hud:hide()
 --	RadialMouseMenu._WS:disconnect_keyboard()
+	if self.block_all_input then 
+		game_state_machine:_set_controller_enabled(true)
+	end
+	local item = self._selected and self._items[self._selected]
+	self._selected = false
 	if self._active then 
+		self._active = false
 		self._selector:set_visible(false)
+		local player = managers.player and managers.player:local_player()
+		if alive(player) then 
+			player:movement():current_state()._menu_closed_fire_cooldown = player:movement():current_state()._menu_closed_fire_cooldown + 0.01
+		end
 		self:on_closed()
+		managers.mouse_pointer:_deactivate(RadialMouseMenu.MOUSE_ID)
 		if do_success_cb then 
-			local item = self._selected and self._items[self._selected]
 			if item then 
 				self:on_item_clicked(item,true) --already hiding here so skip_hide 
 			end
 		end
-		managers.mouse_pointer:remove_mouse("radial_menu_mouse")
-		game_state_machine:_set_controller_enabled(true)
 	end
-	self._selected = false
-	self._active = false
 end
 
 --[[ to destroy a radial menu object:
