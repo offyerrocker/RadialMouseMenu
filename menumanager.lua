@@ -26,7 +26,7 @@ RadialMouseMenu.MOUSE_ID = "radial_menu_mouse"
 RadialMouseMenu.queued_items = {}
 
 function RadialMouseMenu.CreateQueuedMenus()
-	for i,_data in pairs(RadialMouseMenu.queued_items) do
+	for i=#RadialMouseMenu.queued_items,1,-1 do
 		local data = table.remove(RadialMouseMenu.queued_items,i)
 		local result = RadialMouseMenu:new(data.params,data.callback)
 --		if result and (type(data.callback) == "function") then 
