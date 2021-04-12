@@ -37,7 +37,7 @@ end
 
 function RadialMouseMenu:init(params,callback) --create new instance of a radial selection menu; called from new()
 	if not managers.gui_data then 
-		table.insert(RadialMouseMenu.queued_items,{callback = callback,params = params})
+		table.insert(RadialMouseMenu.queued_items,1,{callback = callback,params = params})
 		--if RadialMouseMenu:new() is called after RMM loads but before the rest of the game,
 		--save the information for later and create it on game load
 		return
