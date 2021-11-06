@@ -20,10 +20,16 @@ Fixed nested radial menus causing issues recognizing currently-open menus due to
 Added on-exit-menu cooldown for blocking attack input
 --]]
 
+local this_version = 1.13
+if RadialMouseMenu and RadialMouseMenu.VERSION and RadialMouseMenu.VERSION > this_version then 
+	return
+end
 
 RadialMouseMenu = RadialMouseMenu or class()
-RadialMouseMenu.MOUSE_ID = "radial_menu_mouse"
-RadialMouseMenu.queued_items = {}
+RadialMouseMenu.VERSION = this_version
+
+RadialMouseMenu.MOUSE_ID = RadialMouseMenu.MOUSE_ID or "radial_menu_mouse"
+RadialMouseMenu.queued_items = RadialMouseMenu.queued_items or {}
 
 function RadialMouseMenu.CreateQueuedMenus()
 	for i=#RadialMouseMenu.queued_items,1,-1 do
@@ -567,12 +573,15 @@ function RadialMouseMenu:populate_items()
 		
 		local x = (math.cos(angle) * (self._size * 0.314))
 		local y = ((math.sin(angle) * (self._size * 0.314)) + - (icon.h / 2)) + (self._size / 2)
-		icon.x = x + (self._size / 2) - (icon.w / 2)
+		icon.x = x + (self._size / 2) -- -(icon.w / 2)
 		icon.y = y
+		icon.halign = "center"
+		icon.valign = "center"
 		
 		
 		local segment_icon = new_segment:bitmap(icon)
-		data._icon = segment_icon		
+		segment_icon:set_center(icon.x,icon.y)
+		data._icon = segment_icon
 		
 		local text_panel = data.text_panel or { 
 			name = name .. "_TEXT_PANEL",
