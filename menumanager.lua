@@ -1,5 +1,4 @@
 --[[ TODO
-
 --allow repositioning text (currently centered from formula: [0.5*radius  +  constant] )
 
 * add keyboard button support
@@ -11,6 +10,9 @@
 	new:
 	
 --CHANGELOG
+
+
+
 Added option for disabling game movement (blocking character control input, but keeping menu input). For reasons of compatibility with existing mods that use RMM, this is enabled by default, but can now be set to false in order to use the alternate, selective input blocking methods.
 Added option to allow looking around while in radial menu (recommended to disable for targeting-specific radial menus, like the apex legends-style ping menu mod)
 Added option to allow movement while in radial menu 
@@ -397,7 +399,7 @@ function RadialMouseMenu:Hide(skip_reset,do_success_cb)
 			player:movement():current_state()._menu_closed_fire_cooldown = player:movement():current_state()._menu_closed_fire_cooldown + 0.01
 		end
 		self:on_closed()
-		managers.mouse_pointer:_deactivate(RadialMouseMenu.MOUSE_ID)
+		managers.mouse_pointer:remove_mouse(RadialMouseMenu.MOUSE_ID)
 		if do_success_cb then 
 			if item then 
 				self:on_item_clicked(item,true) --already hiding here so skip_hide 
