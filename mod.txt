@@ -1,6 +1,6 @@
 {
-	"name" : "Radial Mouse Menu",
-	"description" : "A class for creating radial menus, controlled with the mouse.\nSee GitHub for documentation.",
+	"name" : "Radial Menu",
+	"description" : "A class for creating radial menus, controlled with a mouse or controller.\nSee GitHub for documentation.",
 	"author" : "Offyerrocker",
 	"contact" : "Discord: Offyerrocker#3878",
 	"version" : "1.13",
